@@ -15,10 +15,18 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
-var args struct {
+const (
+	version = "v0.1.0"
+)
+
+type args struct {
 	Bucket string `arg:"required,-b"`
 	Region string `default:"eu-west-1" arg:"-r"`
 	Source string `arg:"positional,required"`
+}
+
+func (args) Version() string {
+	return version
 }
 
 func closeAndCheck(closer io.Closer) {
@@ -28,19 +36,20 @@ func closeAndCheck(closer io.Closer) {
 	}
 }
 
-func simplifyLocation(uploadInfoLocation string) (string, error) {
+func simplifyLocation(region, uploadInfoLocation string) (string, error) {
 	location, err := url.QueryUnescape(uploadInfoLocation)
 	if err != nil {
 		return "", err
 	}
 	location = strings.Replace(location, "https", "s3", 1)
 
-	subDomain := fmt.Sprintf(".s3.%s.amazonaws.com", args.Region)
+	subDomain := fmt.Sprintf(".s3.%s.amazonaws.com", region)
 	location = strings.Replace(location, subDomain, "", 1)
 	return location, nil
 }
 
 func main() {
+	var args args
 	arg.MustParse(&args)
 
 	sourceDir := args.Source
@@ -87,7 +96,7 @@ func main() {
 		}
 		closeAndCheck(fd)
 
-		location, err := simplifyLocation(uploadInfo.Location)
+		location, err := simplifyLocation(args.Region, uploadInfo.Location)
 		if err != nil {
 			log.Fatal(err)
 		}
