@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net/url"
 	"os"
 	"strings"
 
@@ -25,6 +26,18 @@ func closeAndCheck(closer io.Closer) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func simplifyLocation(uploadInfoLocation string) (string, error) {
+	location, err := url.QueryUnescape(uploadInfoLocation)
+	if err != nil {
+		return "", err
+	}
+	location = strings.Replace(location, "https", "s3", 1)
+
+	subDomain := fmt.Sprintf(".s3.%s.amazonaws.com", args.Region)
+	location = strings.Replace(location, subDomain, "", 1)
+	return location, nil
 }
 
 func main() {
@@ -74,6 +87,10 @@ func main() {
 		}
 		closeAndCheck(fd)
 
-		fmt.Printf("Copied %s as %s\n", fileName, uploadInfo.Location)
+		location, err := simplifyLocation(uploadInfo.Location)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("Copied %s as %s\n", fileName, location)
 	}
 }
